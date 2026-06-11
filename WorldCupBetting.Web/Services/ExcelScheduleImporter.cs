@@ -11,6 +11,16 @@ namespace WorldCupBetting.Web.Services;
 
 public class ExcelScheduleImporter(AppDbContext db)
 {
+    private sealed class ImportedMatchRow
+    {
+        public int MatchNo { get; init; }
+        public DateTime MatchTime { get; init; }
+        public string TeamA { get; init; } = string.Empty;
+        public string TeamB { get; init; } = string.Empty;
+        public string GroupCode { get; init; } = string.Empty;
+        public TournamentRound Round { get; init; } = TournamentRound.Group;
+    }
+
     private static readonly Dictionary<string, string> TeamNameMap = new(StringComparer.OrdinalIgnoreCase)
     {
         ["South Korea"] = "Hàn Quốc",
@@ -38,7 +48,8 @@ public class ExcelScheduleImporter(AppDbContext db)
             return 0;
         }
 
-        using var doc = SpreadsheetDocument.Open(filePath, false);
+        using var stream = File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        using var doc = SpreadsheetDocument.Open(stream, false);
         var wbPart = doc.WorkbookPart;
         if (wbPart is null)
         {
@@ -46,6 +57,11 @@ public class ExcelScheduleImporter(AppDbContext db)
         }
 
         var shared = wbPart.SharedStringTablePart?.SharedStringTable;
+
+        if (IsSimpleScheduleWorkbook(wbPart))
+        {
+            return await ImportSimpleScheduleAsync(wbPart, shared);
+        }
 
         var teamGroup = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var importedMatches = new List<(DateTime MatchTime, string TeamA, string TeamB, string GroupCode, int MatchNo)>();
@@ -196,6 +212,296 @@ public class ExcelScheduleImporter(AppDbContext db)
         return importedMatches.Count;
     }
 
+    private async Task<int> ImportSimpleScheduleAsync(WorkbookPart wbPart, SharedStringTable? shared)
+    {
+        var firstSheet = wbPart.Workbook.Sheets?.Elements<Sheet>().FirstOrDefault();
+        if (firstSheet is null)
+        {
+            return 0;
+        }
+
+        var wsPart = (WorksheetPart)wbPart.GetPartById(firstSheet.Id!);
+        var rows = wsPart.Worksheet.GetFirstChild<SheetData>()?.Elements<Row>() ?? Enumerable.Empty<Row>();
+
+        var existingTeams = await db.Teams
+            .AsNoTracking()
+            .Where(x => !string.IsNullOrWhiteSpace(x.GroupCode))
+            .ToListAsync();
+
+        var teamGroup = existingTeams
+            .GroupBy(x => NormalizeTeamName(x.Name), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                x => x.Key,
+                x => x.Select(t => t.GroupCode).FirstOrDefault(code => !string.IsNullOrWhiteSpace(code)) ?? string.Empty,
+                StringComparer.OrdinalIgnoreCase);
+
+        var importedMatches = new List<ImportedMatchRow>();
+        var currentRound = TournamentRound.Group;
+
+        foreach (var row in rows)
+        {
+            if (row.RowIndex is null)
+            {
+                continue;
+            }
+
+            var idText = ReadCellText(wsPart, shared, row.RowIndex.Value, 1).Trim();
+            var col2Text = ReadCellText(wsPart, shared, row.RowIndex.Value, 2).Trim();
+            var timeText = ReadCellText(wsPart, shared, row.RowIndex.Value, 3).Trim();
+            var teamA = NormalizeTeamName(ReadCellText(wsPart, shared, row.RowIndex.Value, 4).Trim());
+            var teamB = NormalizeTeamName(ReadCellText(wsPart, shared, row.RowIndex.Value, 5).Trim());
+
+            if (!string.IsNullOrWhiteSpace(col2Text) && TryParseRoundHeader(col2Text, out var parsedRound))
+            {
+                currentRound = parsedRound;
+                continue;
+            }
+
+            if (!int.TryParse(idText, out var matchNo))
+            {
+                continue;
+            }
+
+            var matchTime = ParseScheduleDateTime(col2Text, timeText);
+            if (matchTime == default)
+            {
+                continue;
+            }
+
+            var round = matchNo <= 72 ? TournamentRound.Group : currentRound;
+            var groupCode = round == TournamentRound.Group
+                ? ResolveGroupCode(teamA, teamB, teamGroup, matchNo)
+                : "KO";
+
+            if (round == TournamentRound.Group)
+            {
+                if (!string.IsNullOrWhiteSpace(teamA) && !string.IsNullOrWhiteSpace(groupCode))
+                {
+                    teamGroup[teamA] = groupCode;
+                }
+
+                if (!string.IsNullOrWhiteSpace(teamB) && !string.IsNullOrWhiteSpace(groupCode))
+                {
+                    teamGroup[teamB] = groupCode;
+                }
+            }
+
+            importedMatches.Add(new ImportedMatchRow
+            {
+                MatchNo = matchNo,
+                MatchTime = matchTime,
+                TeamA = teamA,
+                TeamB = teamB,
+                GroupCode = groupCode,
+                Round = round
+            });
+        }
+
+        await SyncMatchesByIdAsync(importedMatches);
+        return importedMatches.Count;
+    }
+
+    private async Task SyncMatchesByIdAsync(List<ImportedMatchRow> importedMatches)
+    {
+        var existingMatches = await db.Matches.OrderBy(x => x.Id).ToListAsync();
+        var existingById = existingMatches.ToDictionary(x => x.Id);
+        var importedIds = importedMatches.Select(x => x.MatchNo).ToHashSet();
+
+        foreach (var row in importedMatches.OrderBy(x => x.MatchNo))
+        {
+            if (!existingById.TryGetValue(row.MatchNo, out var match))
+            {
+                match = new Match { Id = row.MatchNo };
+                db.Matches.Add(match);
+                existingById[row.MatchNo] = match;
+            }
+
+            match.MatchTime = row.MatchTime;
+            match.TeamA = row.TeamA;
+            match.TeamB = row.TeamB;
+            match.Round = row.Round;
+            match.GroupCode = row.GroupCode;
+            match.Status = MatchStatus.Upcoming;
+
+            if (row.Round == TournamentRound.Group)
+            {
+                if (!string.Equals(match.FavoriteTeam, row.TeamA, StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(match.FavoriteTeam, row.TeamB, StringComparison.OrdinalIgnoreCase))
+                {
+                    match.FavoriteTeam = row.TeamA;
+                }
+
+                if (!string.IsNullOrWhiteSpace(match.Result) &&
+                    !string.Equals(match.Result, row.TeamA, StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(match.Result, row.TeamB, StringComparison.OrdinalIgnoreCase))
+                {
+                    match.Result = string.Empty;
+                }
+            }
+            else
+            {
+                if (!string.Equals(match.FavoriteTeam, row.TeamA, StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(match.FavoriteTeam, row.TeamB, StringComparison.OrdinalIgnoreCase))
+                {
+                    match.FavoriteTeam = string.Empty;
+                }
+
+                if (!string.IsNullOrWhiteSpace(match.Result) &&
+                    !string.Equals(match.Result, row.TeamA, StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(match.Result, row.TeamB, StringComparison.OrdinalIgnoreCase))
+                {
+                    match.Result = string.Empty;
+                }
+            }
+        }
+
+        var extraMatches = existingMatches.Where(x => !importedIds.Contains(x.Id)).ToList();
+        if (extraMatches.Count > 0)
+        {
+            var extraIds = extraMatches.Select(x => x.Id).ToList();
+
+            var extraPredictions = await db.Predictions.Where(x => extraIds.Contains(x.MatchId)).ToListAsync();
+            if (extraPredictions.Count > 0)
+            {
+                db.Predictions.RemoveRange(extraPredictions);
+            }
+
+            var extraBetResults = await db.BetResults.Where(x => extraIds.Contains(x.MatchId)).ToListAsync();
+            if (extraBetResults.Count > 0)
+            {
+                db.BetResults.RemoveRange(extraBetResults);
+            }
+
+            foreach (var match in await db.Matches.Where(x => x.ParentMatchAId.HasValue || x.ParentMatchBId.HasValue).ToListAsync())
+            {
+                if (match.ParentMatchAId.HasValue && extraIds.Contains(match.ParentMatchAId.Value))
+                {
+                    match.ParentMatchAId = null;
+                }
+
+                if (match.ParentMatchBId.HasValue && extraIds.Contains(match.ParentMatchBId.Value))
+                {
+                    match.ParentMatchBId = null;
+                }
+            }
+
+            db.Matches.RemoveRange(extraMatches);
+        }
+
+        await db.SaveChangesAsync();
+    }
+
+    private static bool IsSimpleScheduleWorkbook(WorkbookPart wbPart)
+    {
+        var sheets = wbPart.Workbook.Sheets?.Elements<Sheet>().ToList() ?? [];
+        if (sheets.Count != 1)
+        {
+            return false;
+        }
+
+        return !string.Equals(sheets[0].Name?.Value, "DailySchedule", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool TryParseRoundHeader(string value, out TournamentRound round)
+    {
+        var normalized = value.Trim().ToLowerInvariant();
+        round = TournamentRound.Group;
+
+        if (normalized.Contains("round of 32"))
+        {
+            round = TournamentRound.RoundOf32;
+            return true;
+        }
+
+        if (normalized.Contains("round of 16"))
+        {
+            round = TournamentRound.RoundOf16;
+            return true;
+        }
+
+        if (normalized.Contains("quarter final"))
+        {
+            round = TournamentRound.QuarterFinal;
+            return true;
+        }
+
+        if (normalized.Contains("semi-final") || normalized.Contains("semifinal"))
+        {
+            round = TournamentRound.SemiFinal;
+            return true;
+        }
+
+        if (normalized.Contains("hạng 3"))
+        {
+            round = TournamentRound.ThirdPlace;
+            return true;
+        }
+
+        if (normalized.Contains("chung kết"))
+        {
+            round = TournamentRound.Final;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static string ResolveGroupCode(string teamA, string teamB, Dictionary<string, string> teamGroup, int matchNo)
+    {
+        if (!string.IsNullOrWhiteSpace(teamA) && teamGroup.TryGetValue(teamA, out var groupA))
+        {
+            return groupA;
+        }
+
+        if (!string.IsNullOrWhiteSpace(teamB) && teamGroup.TryGetValue(teamB, out var groupB))
+        {
+            return groupB;
+        }
+
+        var groupIndex = (matchNo - 1) / 6;
+        if (groupIndex >= 0 && groupIndex < 12)
+        {
+            return ((char)('A' + groupIndex)).ToString();
+        }
+
+        return string.Empty;
+    }
+
+    private static DateTime ParseScheduleDateTime(string dateValue, string timeValue)
+    {
+        var combined = $"{dateValue} {timeValue}".Trim();
+        var formats = new[]
+        {
+            "ddd, dd/MM/yyyy H:mm",
+            "ddd, dd/MM/yyyy HH:mm",
+            "dd/MM/yyyy H:mm",
+            "dd/MM/yyyy HH:mm"
+        };
+
+        if (DateTime.TryParseExact(combined, formats, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out var exact))
+        {
+            return RoundToMinute(exact);
+        }
+
+        var datePart = ParseExcelDateTime(dateValue);
+        if (datePart != default)
+        {
+            if (TimeOnly.TryParse(timeValue, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out var timeOnly) ||
+                TimeOnly.TryParse(timeValue, CultureInfo.GetCultureInfo("vi-VN"), DateTimeStyles.AllowWhiteSpaces, out timeOnly))
+            {
+                return RoundToMinute(datePart.Date.Add(timeOnly.ToTimeSpan()));
+            }
+
+            var timePart = ParseExcelDateTime(timeValue);
+            if (timePart != default)
+            {
+                return RoundToMinute(datePart.Date.Add(timePart.TimeOfDay));
+            }
+        }
+
+        return default;
+    }
+
     private static Sheet? FindSheet(WorkbookPart wbPart, string name)
     {
         return wbPart.Workbook.Sheets?
@@ -284,11 +590,12 @@ public class ExcelScheduleImporter(AppDbContext db)
         var start = lastGroupMatch.Date.AddDays(2).AddHours(19);
         var placeholders = new List<Match>();
 
-        placeholders.AddRange(CreateRoundPlaceholders(TournamentRound.RoundOf16, 8, start));
-        placeholders.AddRange(CreateRoundPlaceholders(TournamentRound.QuarterFinal, 4, start.AddDays(6)));
-        placeholders.AddRange(CreateRoundPlaceholders(TournamentRound.SemiFinal, 2, start.AddDays(10)));
-        placeholders.AddRange(CreateRoundPlaceholders(TournamentRound.ThirdPlace, 1, start.AddDays(13)));
-        placeholders.AddRange(CreateRoundPlaceholders(TournamentRound.Final, 1, start.AddDays(14)));
+        placeholders.AddRange(CreateRoundPlaceholders(TournamentRound.RoundOf32, 16, start));
+        placeholders.AddRange(CreateRoundPlaceholders(TournamentRound.RoundOf16, 8, start.AddDays(6)));
+        placeholders.AddRange(CreateRoundPlaceholders(TournamentRound.QuarterFinal, 4, start.AddDays(10)));
+        placeholders.AddRange(CreateRoundPlaceholders(TournamentRound.SemiFinal, 2, start.AddDays(13)));
+        placeholders.AddRange(CreateRoundPlaceholders(TournamentRound.ThirdPlace, 1, start.AddDays(17)));
+        placeholders.AddRange(CreateRoundPlaceholders(TournamentRound.Final, 1, start.AddDays(18)));
 
         await db.Matches.AddRangeAsync(placeholders);
     }

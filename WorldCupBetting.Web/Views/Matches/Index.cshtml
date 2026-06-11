@@ -64,7 +64,7 @@
         {
             var row = Model.Rows[i];
             <tr>
-                <td>@(i + 1)</td>
+                <td>@row.Match.Id</td>
                 <td>@row.Match.Round</td>
                 <td class="time-col">
                     <div>@row.Match.MatchTime.ToString("dd/MM/yyyy")</div>
@@ -217,7 +217,7 @@
         <div class="card mb-3 shadow-sm">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start mb-1">
-                    <h2 class="h6 mb-0">@(i + 1). @row.Match.TeamA vs @row.Match.TeamB</h2>
+                    <h2 class="h6 mb-0">@row.Match.Id. @row.Match.TeamA vs @row.Match.TeamB</h2>
                     <span class="badge text-bg-light">@row.Match.Round</span>
                 </div>
                 <div class="small text-muted">@row.Match.MatchTime.ToString("dd/MM/yyyy HH:mm")</div>

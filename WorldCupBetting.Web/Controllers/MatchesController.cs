@@ -43,7 +43,7 @@ public class MatchesController(AppDbContext db, IClockService clock, BettingEngi
             query = query.Where(x => x.Round == roundValue);
         }
 
-        var matches = await query.OrderBy(x => x.MatchTime).ToListAsync();
+        var matches = await query.OrderBy(x => x.Id).ToListAsync();
         var predictions = await db.Predictions.ToListAsync();
         var betResults = await db.BetResults.ToListAsync();
 

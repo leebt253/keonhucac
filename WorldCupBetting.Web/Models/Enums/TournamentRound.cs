@@ -3,9 +3,10 @@ namespace WorldCupBetting.Web.Models.Enums;
 public enum TournamentRound
 {
     Group = 0,
-    RoundOf16 = 1,
-    QuarterFinal = 2,
-    SemiFinal = 3,
-    ThirdPlace = 4,
-    Final = 5
+    RoundOf32 = 1,
+    RoundOf16 = 2,
+    QuarterFinal = 3,
+    SemiFinal = 4,
+    ThirdPlace = 5,
+    Final = 6
 }
