@@ -133,6 +133,46 @@ body {
   opacity: 0.65;
 }
 
+.mobile-team-btn {
+  border: 1px solid var(--accent);
+  background: var(--surface);
+  color: var(--text) !important;
+  -webkit-text-fill-color: var(--text);
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.mobile-team-btn:hover,
+.mobile-team-btn:focus,
+.mobile-team-btn:active {
+  border-color: var(--accent);
+  background: #e9f2ff;
+  color: var(--text) !important;
+  -webkit-text-fill-color: var(--text);
+}
+
+.mobile-team-btn.selected-a {
+  border-color: #8ec5ff;
+  background: #cfe6ff;
+  color: var(--text) !important;
+  -webkit-text-fill-color: var(--text);
+}
+
+.mobile-team-btn.selected-b {
+  border-color: #ffca8e;
+  background: #ffe8cf;
+  color: var(--text) !important;
+  -webkit-text-fill-color: var(--text);
+}
+
+.mobile-team-btn:disabled {
+  border-color: rgba(16, 32, 48, 0.2);
+  background: #f3f6fb;
+  color: var(--text) !important;
+  -webkit-text-fill-color: var(--text);
+  opacity: 0.65;
+}
+
 .admin-odds-cell {
   min-width: 260px;
 }

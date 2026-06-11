@@ -228,13 +228,13 @@
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="matchId" value="@row.Match.Id" />
                     <input type="hidden" name="selectedTeam" value="@row.Match.TeamA" />
-                    <button class="btn btn-sm flex-fill @(row.MySelection == row.Match.TeamA ? "btn-primary" : "btn-outline-primary")" type="submit" onclick="handleTeamClick(event, '@row.Match.TeamA', '@row.MySelection', @row.IsLocked.ToString().ToLower())" @(row.IsLocked || string.IsNullOrWhiteSpace(row.Match.TeamA) ? "disabled" : "")>@row.Match.TeamA</button>
+                    <button class="btn btn-sm flex-fill mobile-team-btn @(row.MySelection == row.Match.TeamA ? "selected-a" : "")" type="submit" onclick="handleTeamClick(event, '@row.Match.TeamA', '@row.MySelection', @row.IsLocked.ToString().ToLower())" @(row.IsLocked || string.IsNullOrWhiteSpace(row.Match.TeamA) ? "disabled" : "")>@row.Match.TeamA</button>
                 </form>
                 <form asp-action="Predict" method="post" class="d-flex gap-2 mt-2">
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="matchId" value="@row.Match.Id" />
                     <input type="hidden" name="selectedTeam" value="@row.Match.TeamB" />
-                    <button class="btn btn-sm flex-fill @(row.MySelection == row.Match.TeamB ? "btn-primary" : "btn-outline-primary")" type="submit" onclick="handleTeamClick(event, '@row.Match.TeamB', '@row.MySelection', @row.IsLocked.ToString().ToLower())" @(row.IsLocked || string.IsNullOrWhiteSpace(row.Match.TeamB) ? "disabled" : "")>@row.Match.TeamB</button>
+                    <button class="btn btn-sm flex-fill mobile-team-btn @(row.MySelection == row.Match.TeamB ? "selected-b" : "")" type="submit" onclick="handleTeamClick(event, '@row.Match.TeamB', '@row.MySelection', @row.IsLocked.ToString().ToLower())" @(row.IsLocked || string.IsNullOrWhiteSpace(row.Match.TeamB) ? "disabled" : "")>@row.Match.TeamB</button>
                 </form>
 
                 <div class="mt-2 small">Lựa chọn của tôi: <strong>@(row.MySelection ?? "Chưa chọn")</strong></div>
