@@ -17,4 +17,11 @@
     <PackageReference Include="QuestPDF" Version="2026.6.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="worldcup.db">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
