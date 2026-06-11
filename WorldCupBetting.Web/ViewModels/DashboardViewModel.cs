@@ -13,4 +13,5 @@ public class LeaderboardRowViewModel
 public class LeaderboardViewModel
 {
     public List<LeaderboardRowViewModel> Rows { get; set; } = new();
+    public bool ShowTitles { get; set; }
 }

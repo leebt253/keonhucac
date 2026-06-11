@@ -14,6 +14,8 @@ public class HomeController(AppDbContext db) : Controller
 {
     public async Task<IActionResult> Index()
     {
+        var hasFinishedMatch = await db.Matches.AnyAsync(x => !string.IsNullOrWhiteSpace(x.Result));
+
         var users = await db.Users
             .Where(x => x.UserName != "admin")
             .OrderBy(x => x.DisplayName)
@@ -59,7 +61,8 @@ public class HomeController(AppDbContext db) : Controller
 
         return View(new LeaderboardViewModel
         {
-            Rows = rows
+            Rows = rows,
+            ShowTitles = hasFinishedMatch
         });
     }
 

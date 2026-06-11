@@ -10,7 +10,7 @@
         <thead>
             <tr>
                 <th>Thứ hạng</th>
-                <th>Tên hiển thị</th>
+                <th>Con bạc</th>
                 <th>Số trận đoán đúng</th>
                 <th>Số trận đoán sai</th>
                 <th>Số tiền cúng</th>
@@ -26,7 +26,7 @@
                 <td>@row.CorrectPredictions</td>
                 <td>@row.WrongPredictions</td>
                 <td>@row.TotalAmount</td>
-                <td>@(string.IsNullOrWhiteSpace(row.Title) ? "-" : row.Title)</td>
+                <td>@(Model.ShowTitles && !string.IsNullOrWhiteSpace(row.Title) ? row.Title : "-")</td>
             </tr>
         }
         </tbody>
