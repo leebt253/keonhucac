@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: worldcup-betting-web
+    env: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    autoDeploy: true
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ConnectionStrings__DefaultConnection
+        value: Data Source=/var/data/worldcup.db
+    disk:
+      name: worldcup-db
+      mountPath: /var/data
+      sizeGB: 1

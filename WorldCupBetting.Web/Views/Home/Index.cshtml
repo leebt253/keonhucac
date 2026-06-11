@@ -1,0 +1,14 @@
+﻿@model WorldCupBetting.Web.ViewModels.DashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<h1 class="h4 mb-3">Dashboard</h1>
+<div class="row g-3">
+    <div class="col-6 col-md-4"><div class="stat-card"><div>Tổng số trận</div><strong>@Model.TotalMatches</strong></div></div>
+    <div class="col-6 col-md-4"><div class="stat-card"><div>Trận sắp diễn ra</div><strong>@Model.UpcomingMatches</strong></div></div>
+    <div class="col-6 col-md-4"><div class="stat-card"><div>Trận đã kết thúc</div><strong>@Model.FinishedMatches</strong></div></div>
+    <div class="col-12 col-md-4"><div class="stat-card"><div>Người dẫn đầu</div><strong>@Model.CurrentLeader</strong></div></div>
+    <div class="col-12 col-md-4"><div class="stat-card"><div>Lời nhiều nhất</div><strong>@Model.HighestProfitUser</strong></div></div>
+    <div class="col-12 col-md-4"><div class="stat-card"><div>Lỗ nhiều nhất</div><strong>@Model.LargestLossUser</strong></div></div>
+</div>

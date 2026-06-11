@@ -1,0 +1,79 @@
+﻿<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Kèo World Cup</title>
+    <script type="importmap"></script>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/WorldCupBetting.Web.styles.css" asp-append-version="true" />
+</head>
+<body>
+    <header class="sticky-top shadow-sm">
+        <nav class="navbar navbar-expand-lg bg-body-tertiary">
+            <div class="container-fluid px-3">
+                <a class="navbar-brand fw-bold" asp-controller="Matches" asp-action="Index">Kèo World Cup</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="mainNav">
+                    @if (User.Identity?.IsAuthenticated == true)
+                    {
+                        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                            <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="Index">Dashboard</a></li>
+                            <li class="nav-item"><a class="nav-link" asp-controller="Matches" asp-action="Index">Trận đấu</a></li>
+                            <li class="nav-item"><a class="nav-link" href="https://thethao247.vn/world-cup/bang-xep-hang-bong-da">Bảng xếp hạng</a></li>
+                            @if (User.HasClaim("IsAdmin", "true"))
+                            {
+                                <li class="nav-item"><a class="nav-link" asp-controller="Admin" asp-action="Index">Quản trị</a></li>
+                            }
+                        </ul>
+                    }
+
+                    <div class="d-flex align-items-center gap-2">
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            <a asp-controller="Account" asp-action="ChangePassword" class="btn btn-sm btn-outline-primary">Đổi mật khẩu</a>
+                            <form asp-controller="Account" asp-action="Logout" method="post" class="m-0">
+                                @Html.AntiForgeryToken()
+                                <button class="btn btn-sm btn-danger" type="submit">Đăng xuất</button>
+                            </form>
+                        }
+                    </div>
+                </div>
+            </div>
+        </nav>
+    </header>
+    <div class="container py-3 pb-5">
+        @if (TempData["Success"] is string success)
+        {
+            <div class="alert alert-success">@success</div>
+        }
+        @if (TempData["Error"] is string error)
+        {
+            <div class="alert alert-danger">@error</div>
+        }
+        <main role="main">
+            @RenderBody()
+        </main>
+    </div>
+
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        <nav class="mobile-bottom-nav d-lg-none">
+            <a asp-controller="Matches" asp-action="Index">Trận</a>
+            <a href="https://thethao247.vn/world-cup/bang-xep-hang-bong-da">BXH</a>
+            @if (User.HasClaim("IsAdmin", "true"))
+            {
+                <a asp-controller="Admin" asp-action="Index">Admin</a>
+            }
+        </nav>
+    }
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

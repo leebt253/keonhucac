@@ -1,0 +1,255 @@
+@model WorldCupBetting.Web.ViewModels.MatchIndexViewModel
+@using WorldCupBetting.Web.Models.Enums
+@{
+    ViewData["Title"] = "Lịch thi đấu";
+    var isAdmin = User.HasClaim("IsAdmin", "true");
+    var totalCols = 8 + Model.Users.Count;
+}
+
+<h1 class="h4 mb-3">Bảng trận đấu</h1>
+
+<form method="get" class="row g-2 mb-3">
+    <div class="col-12 col-md-4">
+        <input name="search" value="@Model.Search" class="form-control" placeholder="Tìm kiếm đội bóng" />
+    </div>
+    <div class="col-6 col-md-3">
+        <input name="group" value="@Model.Group" class="form-control" placeholder="Lọc theo bảng" />
+    </div>
+    <div class="col-6 col-md-3">
+        <select name="round" class="form-select">
+            <option value="">Tất cả vòng</option>
+            @foreach (var r in Enum.GetValues<TournamentRound>())
+            {
+                <option value="@r" selected="@(Model.Round == r.ToString())">@r</option>
+            }
+        </select>
+    </div>
+    <div class="col-12 col-md-2 d-grid">
+        <button class="btn btn-primary">Tìm kiếm</button>
+    </div>
+</form>
+
+<div class="d-none d-lg-block table-responsive">
+    <table class="table table-bordered table-sm align-middle bet-table">
+        <thead>
+        <tr>
+            <th>STT</th><th>Vòng</th><th class="time-col">Thời gian</th><th class="team-col">Đội A</th><th class="team-col">Đội B</th><th>Đội cửa trên</th><th>Tỷ lệ chấp</th><th>Kết quả</th>
+            @foreach (var user in Model.Users)
+            {
+                <th class="user-col">@user.UserName</th>
+            }
+        </tr>
+        </thead>
+        <tbody>
+        @for (var i = 0; i < Model.Rows.Count; i++)
+        {
+            var row = Model.Rows[i];
+            <tr>
+                <td>@(i + 1)</td>
+                <td>@row.Match.Round</td>
+                <td class="time-col">
+                    <div>@row.Match.MatchTime.ToString("dd/MM/yyyy")</div>
+                    <div class="text-muted">@row.Match.MatchTime.ToString("HH:mm")</div>
+                </td>
+                <td class="pick-cell team-col" title="@(string.IsNullOrWhiteSpace(row.TeamAChoosers) ? "Chưa có người chọn" : row.TeamAChoosers)">
+                    @if (isAdmin && row.Match.Round != TournamentRound.Group)
+                    {
+                        <div class="d-flex align-items-center justify-content-between gap-2">
+                            <form asp-action="Predict" method="post" class="flex-grow-1">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="matchId" value="@row.Match.Id" />
+                                <input type="hidden" name="selectedTeam" value="@row.Match.TeamA" />
+                                <button class="pick-btn @(row.MySelection == row.Match.TeamA ? "selected-a" : "")" type="submit" onclick="handleTeamClick(event, '@row.Match.TeamA', '@row.MySelection', @row.IsLocked.ToString().ToLower())" @(row.IsLocked || string.IsNullOrWhiteSpace(row.Match.TeamA) ? "disabled" : "")>@row.Match.TeamA</button>
+                            </form>
+                            <button class="btn btn-sm btn-outline-secondary" type="button" onclick="toggleKnockoutEditor(@row.Match.Id)">Edit</button>
+                        </div>
+                    }
+                    else
+                    {
+                        <form asp-action="Predict" method="post">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="matchId" value="@row.Match.Id" />
+                            <input type="hidden" name="selectedTeam" value="@row.Match.TeamA" />
+                            <button class="pick-btn @(row.MySelection == row.Match.TeamA ? "selected-a" : "")" type="submit" onclick="handleTeamClick(event, '@row.Match.TeamA', '@row.MySelection', @row.IsLocked.ToString().ToLower())" @(row.IsLocked || string.IsNullOrWhiteSpace(row.Match.TeamA) ? "disabled" : "")>@row.Match.TeamA</button>
+                        </form>
+                    }
+                </td>
+                <td class="pick-cell team-col" title="@(string.IsNullOrWhiteSpace(row.TeamBChoosers) ? "Chưa có người chọn" : row.TeamBChoosers)">
+                    <form asp-action="Predict" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="matchId" value="@row.Match.Id" />
+                        <input type="hidden" name="selectedTeam" value="@row.Match.TeamB" />
+                        <button class="pick-btn @(row.MySelection == row.Match.TeamB ? "selected-b" : "")" type="submit" onclick="handleTeamClick(event, '@row.Match.TeamB', '@row.MySelection', @row.IsLocked.ToString().ToLower())" @(row.IsLocked || string.IsNullOrWhiteSpace(row.Match.TeamB) ? "disabled" : "")>@row.Match.TeamB</button>
+                    </form>
+                </td>
+                @if (isAdmin)
+                {
+                    <td>
+                        <div class="d-flex align-items-center justify-content-between gap-2">
+                            <span>@row.Match.FavoriteTeam</span>
+                            <button class="btn btn-sm btn-outline-secondary" type="button" onclick="toggleOddsEditor(@row.Match.Id)">Edit</button>
+                        </div>
+                    </td>
+                    <td>@row.Match.HandicapValue</td>
+                    <td class="result-cell">
+                        <div class="d-flex align-items-center justify-content-between gap-2">
+                            <span class="fw-bold">@(string.IsNullOrWhiteSpace(row.Match.Result) ? "-" : row.Match.Result)</span>
+                            <button class="btn btn-sm btn-outline-secondary" type="button" onclick="toggleResultEditor(@row.Match.Id)">Edit</button>
+                        </div>
+                    </td>
+                }
+                else
+                {
+                    <td>@row.Match.FavoriteTeam</td>
+                    <td>@row.Match.HandicapValue</td>
+                    <td class="result-cell">
+                        <div class="fw-bold">@(string.IsNullOrWhiteSpace(row.Match.Result) ? "-" : row.Match.Result)</div>
+                    </td>
+                }
+                @foreach (var user in Model.Users)
+                {
+                    var userResult = row.ResultsByUser.TryGetValue(user.Id, out var result) ? result : null;
+                    var userPick = row.PredictionsByUser.TryGetValue(user.Id, out var pick) ? pick : null;
+                    var resultClass = userResult == true ? "prediction-correct" : userResult == false ? "prediction-wrong" : "";
+                    <td class="user-col prediction-cell @resultClass">@(userPick ?? "-")</td>
+                }
+            </tr>
+            @if (isAdmin)
+            {
+                <tr id="odds-editor-@row.Match.Id" class="d-none odds-editor-row">
+                    <td colspan="@totalCols">
+                        <form asp-action="UpdateOdds" method="post" class="d-flex gap-2 align-items-center flex-wrap">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="matchId" value="@row.Match.Id" />
+                            <label class="mb-0">Đội chấp</label>
+                            <select name="favoriteTeam" class="form-select form-select-sm" style="max-width: 180px;">
+                                @if (!string.IsNullOrWhiteSpace(row.Match.TeamA))
+                                {
+                                    <option value="@row.Match.TeamA" selected="@(row.Match.FavoriteTeam == row.Match.TeamA)">@row.Match.TeamA</option>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(row.Match.TeamB))
+                                {
+                                    <option value="@row.Match.TeamB" selected="@(row.Match.FavoriteTeam == row.Match.TeamB)">@row.Match.TeamB</option>
+                                }
+                            </select>
+                            <label class="mb-0">Tỷ lệ chấp</label>
+                            <input name="handicapValue" value="@row.Match.HandicapValue.ToString("0.##")" class="form-control form-control-sm" style="max-width: 100px;" />
+                            <button class="btn btn-sm btn-primary" type="submit">Lưu</button>
+                            <button class="btn btn-sm btn-outline-secondary" type="button" onclick="toggleOddsEditor(@row.Match.Id)">Đóng</button>
+                        </form>
+                    </td>
+                </tr>
+                <tr id="result-editor-@row.Match.Id" class="d-none result-editor-row">
+                    <td colspan="@totalCols">
+                        <form asp-action="UpdateResult" method="post" class="d-flex gap-2 align-items-center flex-wrap">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="matchId" value="@row.Match.Id" />
+                            <label class="mb-0">Kết quả</label>
+                            <select name="result" class="form-select form-select-sm" style="max-width: 180px;">
+                                <option value="">- Không có -</option>
+                                @if (!string.IsNullOrWhiteSpace(row.Match.TeamA))
+                                {
+                                    <option value="@row.Match.TeamA" selected="@(row.Match.Result == row.Match.TeamA)">@row.Match.TeamA</option>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(row.Match.TeamB))
+                                {
+                                    <option value="@row.Match.TeamB" selected="@(row.Match.Result == row.Match.TeamB)">@row.Match.TeamB</option>
+                                }
+                            </select>
+                            <button class="btn btn-sm btn-primary" type="submit">Lưu</button>
+                            <button class="btn btn-sm btn-outline-secondary" type="button" onclick="toggleResultEditor(@row.Match.Id)">Đóng</button>
+                        </form>
+                    </td>
+                </tr>
+                @if (row.Match.Round != TournamentRound.Group)
+                {
+                    <tr id="knockout-editor-@row.Match.Id" class="d-none knockout-editor-row">
+                        <td colspan="@totalCols">
+                            <form asp-action="UpdateKnockoutTeams" method="post" class="d-flex gap-2 align-items-center flex-wrap">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="matchId" value="@row.Match.Id" />
+                                <label class="mb-0">Đội A</label>
+                                <input name="teamA" value="@row.Match.TeamA" class="form-control form-control-sm" style="max-width: 150px;" />
+                                <label class="mb-0">Đội B</label>
+                                <input name="teamB" value="@row.Match.TeamB" class="form-control form-control-sm" style="max-width: 150px;" />
+                                <button class="btn btn-sm btn-primary" type="submit">Lưu</button>
+                                <button class="btn btn-sm btn-outline-secondary" type="button" onclick="toggleKnockoutEditor(@row.Match.Id)">Đóng</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            }
+        }
+        <tr class="fw-bold">
+            <td colspan="8">Tổng</td>
+            @foreach (var user in Model.Users)
+            {
+                <td class="user-col">@(Model.TotalsByUser.TryGetValue(user.Id, out var total) ? total : 0)</td>
+            }
+        </tr>
+        </tbody>
+    </table>
+</div>
+
+@section Scripts {
+    <script>
+        function handleTeamClick(event, selectedTeam, currentSelection, isLocked) {
+            // If match is locked, prevent default
+            if (isLocked) {
+                event.preventDefault();
+                return false;
+            }
+            
+            // If clicking the already-selected team, unselect it
+            if (selectedTeam === currentSelection && currentSelection) {
+                const form = event.target.closest('form');
+                const input = form.querySelector('input[name="selectedTeam"]');
+                input.value = ''; // Set to empty to trigger unselect
+            }
+            // Otherwise, let form submit normally with the team value
+        }
+        
+        function toggleOddsEditor(matchId) {
+            const row = document.getElementById('odds-editor-' + matchId);
+            if (!row) return;
+            row.classList.toggle('d-none');
+        }
+
+        function toggleResultEditor(matchId) {
+            const row = document.getElementById('result-editor-' + matchId);
+            if (!row) return;
+            row.classList.toggle('d-none');
+        }
+
+        function toggleKnockoutEditor(matchId) {
+            const row = document.getElementById('knockout-editor-' + matchId);
+            if (!row) return;
+            row.classList.toggle('d-none');
+        }
+    </script>
+}
+
+<div class="d-lg-none mobile-match-list">
+    @foreach (var row in Model.Rows)
+    {
+        <div class="card mb-3 shadow-sm">
+            <div class="card-body">
+                <h2 class="h6 mb-1">@row.Match.TeamA vs @row.Match.TeamB</h2>
+                <div class="small text-muted">@row.Match.MatchTime.ToString("dd/MM/yyyy")</div>
+                <div class="small text-muted">@row.Match.MatchTime.ToString("HH:mm")</div>
+                <div class="small text-muted">Vòng: @row.Match.Round</div>
+                <div class="mt-2">Đội cửa trên: <strong>@row.Match.FavoriteTeam (@row.Match.HandicapValue)</strong></div>
+                <div>Kết quả: <strong>@(string.IsNullOrWhiteSpace(row.Match.Result) ? "-" : row.Match.Result)</strong></div>
+                <div class="mb-2">Trạng thái: <strong>@(row.IsLocked ? "Đã khóa" : "Mở")</strong></div>
+
+                <form asp-action="Predict" method="post" class="d-flex gap-2 flex-wrap">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="matchId" value="@row.Match.Id" />
+                    <button class="btn btn-outline-primary flex-fill @(row.MySelection == row.Match.TeamA ? "selected-a" : "")" name="selectedTeam" value="@row.Match.TeamA" title="@(string.IsNullOrWhiteSpace(row.TeamAChoosers) ? "Chưa có người chọn" : row.TeamAChoosers)" @(row.IsLocked || string.IsNullOrWhiteSpace(row.Match.TeamA) ? "disabled" : "")>@row.Match.TeamA</button>
+                    <button class="btn btn-outline-primary flex-fill @(row.MySelection == row.Match.TeamB ? "selected-b" : "")" name="selectedTeam" value="@row.Match.TeamB" title="@(string.IsNullOrWhiteSpace(row.TeamBChoosers) ? "Chưa có người chọn" : row.TeamBChoosers)" @(row.IsLocked || string.IsNullOrWhiteSpace(row.Match.TeamB) ? "disabled" : "")>@row.Match.TeamB</button>
+                </form>
+                <div class="mt-2 small">Lựa chọn của tôi: <strong>@(row.MySelection ?? "Chưa chọn")</strong></div>
+            </div>
+        </div>
+    }
+</div>

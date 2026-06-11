@@ -1,0 +1,46 @@
+@model List<WorldCupBetting.Web.Models.AppUser>
+@{
+    ViewData["Title"] = "Quản lý người dùng";
+}
+
+<h1 class="h4 mb-3">Quản lý người chơi</h1>
+
+<form asp-action="CreateUser" method="post" class="row g-2 mb-3" autocomplete="off">
+    @Html.AntiForgeryToken()
+    <input type="text" name="fake-user" autocomplete="username" class="d-none" tabindex="-1" aria-hidden="true" />
+    <input type="password" name="fake-pass" autocomplete="new-password" class="d-none" tabindex="-1" aria-hidden="true" />
+    <div class="col-12 col-md-6">
+        <input name="userName" value="" autocomplete="new-password" class="form-control" placeholder="Tên người chơi mới" />
+    </div>
+    <div class="col-12 col-md-3 d-grid">
+        <button class="btn btn-primary">Thêm người chơi</button>
+    </div>
+</form>
+
+<div class="table-responsive">
+<table class="table table-bordered table-sm">
+    <thead><tr><th>Tên đăng nhập</th><th>Vai trò</th><th>Ngày tạo</th><th class="text-center">Thao tác</th></tr></thead>
+    <tbody>
+    @foreach (var user in Model)
+    {
+        <tr>
+            <td>@user.UserName</td>
+            <td>@(user.IsAdmin ? "Admin" : "Thành viên")</td>
+            <td>@user.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td>
+            <td class="text-center">
+                <form asp-action="ResetPassword" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="id" value="@user.Id" />
+                    <button class="btn btn-sm btn-outline-warning" onclick="return confirm('Reset mật khẩu người chơi này?')">Reset mật khẩu</button>
+                </form>
+                <form asp-action="DeleteUser" method="post" class="d-inline ms-1">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="id" value="@user.Id" />
+                    <button class="btn btn-sm btn-outline-danger" onclick="return confirm('Xóa người chơi này?')">Xóa</button>
+                </form>
+            </td>
+        </tr>
+    }
+    </tbody>
+</table>
+</div>
