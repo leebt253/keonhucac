@@ -1,0 +1,10 @@
+**/bin/
+**/obj/
+**/.vs/
+**/.vscode/
+*.user
+*.suo
+*.tmp
+*.log
+WorldCupBetting.Web/worldcup.db-shm
+WorldCupBetting.Web/worldcup.db-wal
