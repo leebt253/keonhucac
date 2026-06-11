@@ -1,5 +1,6 @@
 using System.Globalization;
 using Microsoft.Data.Sqlite;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using WorldCupBetting.Web.Data;
@@ -8,6 +9,16 @@ using WorldCupBetting.Web.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllersWithViews();
+
+var dataProtectionDirectory = ResolveDataProtectionDirectory(
+    builder.Configuration.GetConnectionString("DefaultConnection"),
+    builder.Environment.ContentRootPath);
+Directory.CreateDirectory(dataProtectionDirectory);
+
+builder.Services
+    .AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionDirectory))
+    .SetApplicationName("WorldCupBetting.Web");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
@@ -135,3 +146,31 @@ app.MapControllerRoute(
     .WithStaticAssets();
 
 app.Run();
+
+static string ResolveDataProtectionDirectory(string? connectionString, string contentRootPath)
+{
+    if (string.IsNullOrWhiteSpace(connectionString))
+    {
+        return Path.Combine(contentRootPath, "App_Data", "dpkeys");
+    }
+
+    try
+    {
+        var csb = new SqliteConnectionStringBuilder(connectionString);
+        var dataSource = csb.DataSource;
+        if (!string.IsNullOrWhiteSpace(dataSource) && Path.IsPathRooted(dataSource))
+        {
+            var root = Path.GetDirectoryName(dataSource);
+            if (!string.IsNullOrWhiteSpace(root))
+            {
+                return Path.Combine(root, "dpkeys");
+            }
+        }
+    }
+    catch
+    {
+        // Fallback below.
+    }
+
+    return Path.Combine(contentRootPath, "App_Data", "dpkeys");
+}

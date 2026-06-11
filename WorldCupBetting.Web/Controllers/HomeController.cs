@@ -16,7 +16,9 @@ public class HomeController(AppDbContext db, BettingEngine bettingEngine, IClock
     {
         var matches = await db.Matches.ToListAsync();
         var totals = await bettingEngine.GetUserTotalsAsync();
-        var users = await db.Users.ToDictionaryAsync(x => x.Id, x => x.UserName);
+        var users = await db.Users.ToDictionaryAsync(
+            x => x.Id,
+            x => string.IsNullOrWhiteSpace(x.DisplayName) ? x.UserName : x.DisplayName);
 
         var ordered = totals.OrderByDescending(x => x.Value).ToList();
 

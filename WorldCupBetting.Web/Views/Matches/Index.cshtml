@@ -4,10 +4,28 @@
     ViewData["Title"] = "Lịch thi đấu";
     var isAdmin = User.HasClaim("IsAdmin", "true");
     var totalCols = 8 + Model.Users.Count;
+    var isMobileCompact = string.Equals(Model.MobileViewMode, "compact", StringComparison.OrdinalIgnoreCase);
 }
 
 <h1 class="h4 mb-3">Bảng trận đấu</h1>
-<p class="text-muted small d-lg-none mb-2">Vuốt ngang bảng để xem đầy đủ cột và tính năng như desktop.</p>
+
+<div class="d-lg-none mb-3">
+    <form asp-action="SetMobileViewMode" method="post" class="btn-group w-100" role="group" aria-label="Chọn giao diện mobile">
+        @Html.AntiForgeryToken()
+        <button type="submit" name="mode" value="compact" class="btn @(isMobileCompact ? "btn-primary" : "btn-outline-primary")">Giao diện gọn</button>
+        <button type="submit" name="mode" value="full" class="btn @(!isMobileCompact ? "btn-primary" : "btn-outline-primary")">Xem đầy đủ</button>
+    </form>
+    <p class="text-muted small mt-2 mb-0">
+        @if (isMobileCompact)
+        {
+            <span>Đang dùng giao diện gọn mặc định trên điện thoại.</span>
+        }
+        else
+        {
+            <span>Đang dùng giao diện đầy đủ, vuốt ngang để xem hết cột.</span>
+        }
+    </p>
+</div>
 
 <form method="get" class="row g-2 mb-3">
     <div class="col-12 col-md-4">
@@ -30,14 +48,14 @@
     </div>
 </form>
 
-<div class="table-responsive match-table-wrap">
+<div class="table-responsive match-table-wrap @(isMobileCompact ? "d-none d-lg-block" : string.Empty)">
     <table class="table table-bordered table-sm align-middle bet-table">
         <thead>
         <tr>
             <th>STT</th><th>Vòng</th><th class="time-col">Thời gian</th><th class="team-col">Đội A</th><th class="team-col">Đội B</th><th>Đội cửa trên</th><th>Tỷ lệ chấp</th><th>Kết quả</th>
             @foreach (var user in Model.Users)
             {
-                <th class="user-col">@user.UserName</th>
+                <th class="user-col">@(string.IsNullOrWhiteSpace(user.DisplayName) ? user.UserName : user.DisplayName)</th>
             }
         </tr>
         </thead>
@@ -190,6 +208,39 @@
         </tr>
         </tbody>
     </table>
+</div>
+
+<div class="d-lg-none @(isMobileCompact ? string.Empty : "d-none")">
+    @for (var i = 0; i < Model.Rows.Count; i++)
+    {
+        var row = Model.Rows[i];
+        <div class="card mb-3 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-1">
+                    <h2 class="h6 mb-0">@(i + 1). @row.Match.TeamA vs @row.Match.TeamB</h2>
+                    <span class="badge text-bg-light">@row.Match.Round</span>
+                </div>
+                <div class="small text-muted">@row.Match.MatchTime.ToString("dd/MM/yyyy HH:mm")</div>
+                <div class="mt-2 small">Đội cửa trên: <strong>@row.Match.FavoriteTeam</strong> (@row.Match.HandicapValue)</div>
+                <div class="small">Kết quả: <strong>@(string.IsNullOrWhiteSpace(row.Match.Result) ? "-" : row.Match.Result)</strong></div>
+
+                <form asp-action="Predict" method="post" class="d-flex gap-2 mt-2">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="matchId" value="@row.Match.Id" />
+                    <input type="hidden" name="selectedTeam" value="@row.Match.TeamA" />
+                    <button class="btn btn-sm flex-fill @(row.MySelection == row.Match.TeamA ? "btn-primary" : "btn-outline-primary")" type="submit" onclick="handleTeamClick(event, '@row.Match.TeamA', '@row.MySelection', @row.IsLocked.ToString().ToLower())" @(row.IsLocked || string.IsNullOrWhiteSpace(row.Match.TeamA) ? "disabled" : "")>@row.Match.TeamA</button>
+                </form>
+                <form asp-action="Predict" method="post" class="d-flex gap-2 mt-2">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="matchId" value="@row.Match.Id" />
+                    <input type="hidden" name="selectedTeam" value="@row.Match.TeamB" />
+                    <button class="btn btn-sm flex-fill @(row.MySelection == row.Match.TeamB ? "btn-primary" : "btn-outline-primary")" type="submit" onclick="handleTeamClick(event, '@row.Match.TeamB', '@row.MySelection', @row.IsLocked.ToString().ToLower())" @(row.IsLocked || string.IsNullOrWhiteSpace(row.Match.TeamB) ? "disabled" : "")>@row.Match.TeamB</button>
+                </form>
+
+                <div class="mt-2 small">Lựa chọn của tôi: <strong>@(row.MySelection ?? "Chưa chọn")</strong></div>
+            </div>
+        </div>
+    }
 </div>
 
 @section Scripts {

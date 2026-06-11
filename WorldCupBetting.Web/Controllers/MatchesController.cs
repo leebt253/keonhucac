@@ -16,10 +16,15 @@ public class MatchesController(AppDbContext db, IClockService clock, BettingEngi
     public async Task<IActionResult> Index(string search = "", string group = "", string round = "")
     {
         var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var currentUser = await db.Users.FirstOrDefaultAsync(x => x.Id == userId);
+        var mobileViewMode = string.Equals(currentUser?.MobileMatchViewMode, "full", StringComparison.OrdinalIgnoreCase)
+            ? "full"
+            : "compact";
 
         var users = await db.Users
             .Where(x => x.UserName != "admin")
-            .OrderBy(x => x.UserName)
+            .OrderBy(x => x.DisplayName)
+            .ThenBy(x => x.UserName)
             .ToListAsync();
         var query = db.Matches.AsQueryable();
 
@@ -64,10 +69,10 @@ public class MatchesController(AppDbContext db, IClockService clock, BettingEngi
             MySelection = predictions.FirstOrDefault(p => p.MatchId == m.Id && p.UserId == userId)?.SelectedTeam,
             TeamAChoosers = string.Join(", ", predictions
                 .Where(p => p.MatchId == m.Id && string.Equals(p.SelectedTeam, m.TeamA, StringComparison.OrdinalIgnoreCase))
-                .Join(users, p => p.UserId, u => u.Id, (_, u) => u.UserName)),
+                .Join(users, p => p.UserId, u => u.Id, (_, u) => string.IsNullOrWhiteSpace(u.DisplayName) ? u.UserName : u.DisplayName)),
             TeamBChoosers = string.Join(", ", predictions
                 .Where(p => p.MatchId == m.Id && string.Equals(p.SelectedTeam, m.TeamB, StringComparison.OrdinalIgnoreCase))
-                .Join(users, p => p.UserId, u => u.Id, (_, u) => u.UserName))
+                .Join(users, p => p.UserId, u => u.Id, (_, u) => string.IsNullOrWhiteSpace(u.DisplayName) ? u.UserName : u.DisplayName))
         }).ToList();
 
         var totals = await bettingEngine.GetUserTotalsAsync();
@@ -79,8 +84,26 @@ public class MatchesController(AppDbContext db, IClockService clock, BettingEngi
             TotalsByUser = totals,
             Search = search,
             Group = group,
-            Round = round
+            Round = round,
+            MobileViewMode = mobileViewMode
         });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SetMobileViewMode(string mode)
+    {
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var user = await db.Users.FirstOrDefaultAsync(x => x.Id == userId);
+        if (user is null)
+        {
+            return NotFound();
+        }
+
+        user.MobileMatchViewMode = string.Equals(mode, "full", StringComparison.OrdinalIgnoreCase) ? "full" : "compact";
+        await db.SaveChangesAsync();
+
+        return RedirectToAction(nameof(Index));
     }
 
     [HttpPost]

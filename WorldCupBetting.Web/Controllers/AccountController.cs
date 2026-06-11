@@ -60,12 +60,23 @@ public class AccountController(AppDbContext db) : Controller
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new(ClaimTypes.Name, user.UserName),
+            new(ClaimTypes.Name, string.IsNullOrWhiteSpace(user.DisplayName) ? user.UserName : user.DisplayName),
+            new("UserName", user.UserName),
             new("IsAdmin", user.IsAdmin ? "true" : "false")
         };
 
         var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-        await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(identity));
+        var authProperties = new AuthenticationProperties
+        {
+            IsPersistent = vm.RememberMe,
+            ExpiresUtc = vm.RememberMe ? DateTimeOffset.UtcNow.AddDays(30) : null,
+            AllowRefresh = true
+        };
+
+        await HttpContext.SignInAsync(
+            CookieAuthenticationDefaults.AuthenticationScheme,
+            new ClaimsPrincipal(identity),
+            authProperties);
 
         return RedirectToAction("Index", "Matches");
     }

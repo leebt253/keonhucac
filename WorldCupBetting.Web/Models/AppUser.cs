@@ -9,10 +9,16 @@ public class AppUser
     [Required, MaxLength(50)]
     public string UserName { get; set; } = string.Empty;
 
+    [MaxLength(100)]
+    public string DisplayName { get; set; } = string.Empty;
+
     [Required]
     public string PasswordHash { get; set; } = string.Empty;
 
     public bool IsAdmin { get; set; }
+
+    [Required, MaxLength(20)]
+    public string MobileMatchViewMode { get; set; } = "compact";
 
     public DateTime CreatedAt { get; set; }
 

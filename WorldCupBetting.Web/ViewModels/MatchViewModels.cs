@@ -22,6 +22,7 @@ public class MatchIndexViewModel
     public string Search { get; set; } = string.Empty;
     public string Group { get; set; } = string.Empty;
     public string Round { get; set; } = string.Empty;
+    public string MobileViewMode { get; set; } = "compact";
 }
 
 public class PredictionOverviewViewModel

@@ -21,6 +21,10 @@
                     <input asp-for="Password" class="form-control form-control-lg" />
                     <span asp-validation-for="Password" class="text-danger"></span>
                 </div>
+                <div class="form-check mb-3">
+                    <input asp-for="RememberMe" class="form-check-input" />
+                    <label asp-for="RememberMe" class="form-check-label"></label>
+                </div>
                 <button class="btn btn-primary w-100 btn-lg" type="submit">Đăng nhập</button>
             </form>
         </div>

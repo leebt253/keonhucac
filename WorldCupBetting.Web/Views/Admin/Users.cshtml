@@ -10,7 +10,10 @@
     <input type="text" name="fake-user" autocomplete="username" class="d-none" tabindex="-1" aria-hidden="true" />
     <input type="password" name="fake-pass" autocomplete="new-password" class="d-none" tabindex="-1" aria-hidden="true" />
     <div class="col-12 col-md-6">
-        <input name="userName" value="" autocomplete="new-password" class="form-control" placeholder="Tên người chơi mới" />
+        <input name="userName" value="" autocomplete="new-password" class="form-control" placeholder="Tên đăng nhập (không dấu)" />
+    </div>
+    <div class="col-12 col-md-6">
+        <input name="displayName" value="" class="form-control" placeholder="Tên hiển thị (có dấu)" />
     </div>
     <div class="col-12 col-md-3 d-grid">
         <button class="btn btn-primary">Thêm người chơi</button>
@@ -19,12 +22,20 @@
 
 <div class="table-responsive">
 <table class="table table-bordered table-sm">
-    <thead><tr><th>Tên đăng nhập</th><th>Vai trò</th><th>Ngày tạo</th><th class="text-center">Thao tác</th></tr></thead>
+    <thead><tr><th>Tên đăng nhập</th><th>Tên hiển thị</th><th>Vai trò</th><th>Ngày tạo</th><th class="text-center">Thao tác</th></tr></thead>
     <tbody>
     @foreach (var user in Model)
     {
         <tr>
             <td>@user.UserName</td>
+            <td>
+                <form asp-action="UpdateDisplayName" method="post" class="d-flex gap-2 align-items-center">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="id" value="@user.Id" />
+                    <input name="displayName" value="@user.DisplayName" class="form-control form-control-sm" />
+                    <button class="btn btn-sm btn-outline-primary">Lưu</button>
+                </form>
+            </td>
             <td>@(user.IsAdmin ? "Admin" : "Thành viên")</td>
             <td>@user.CreatedAt.ToString("dd/MM/yyyy HH:mm")</td>
             <td class="text-center">

@@ -26,7 +26,9 @@ public class SeedService(AppDbContext db, IClockService clock)
                 user = new AppUser
                 {
                     UserName = name,
+                    DisplayName = name,
                     IsAdmin = false,
+                    MobileMatchViewMode = "compact",
                     CreatedAt = clock.VietnamNow()
                 };
                 user.PasswordHash = hasher.HashPassword(user, "123456");
@@ -34,6 +36,15 @@ public class SeedService(AppDbContext db, IClockService clock)
             }
 
             user.IsAdmin = name == "Nam";
+            if (string.IsNullOrWhiteSpace(user.DisplayName))
+            {
+                user.DisplayName = user.UserName;
+            }
+
+            if (string.IsNullOrWhiteSpace(user.MobileMatchViewMode))
+            {
+                user.MobileMatchViewMode = "compact";
+            }
         }
 
         var admin = await db.Users.FirstOrDefaultAsync(x => x.UserName == "admin");
@@ -42,7 +53,9 @@ public class SeedService(AppDbContext db, IClockService clock)
             admin = new AppUser
             {
                 UserName = "admin",
+                DisplayName = "Quản trị viên",
                 IsAdmin = true,
+                MobileMatchViewMode = "compact",
                 CreatedAt = clock.VietnamNow()
             };
             admin.PasswordHash = hasher.HashPassword(admin, "Keonhucac");
@@ -51,6 +64,16 @@ public class SeedService(AppDbContext db, IClockService clock)
         else
         {
             admin.IsAdmin = true;
+            if (string.IsNullOrWhiteSpace(admin.DisplayName))
+            {
+                admin.DisplayName = "Quản trị viên";
+            }
+
+            if (string.IsNullOrWhiteSpace(admin.MobileMatchViewMode))
+            {
+                admin.MobileMatchViewMode = "compact";
+            }
+
             admin.PasswordHash = hasher.HashPassword(admin, "Keonhucac");
         }
 
