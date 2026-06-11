@@ -103,18 +103,34 @@ body {
   text-align: left;
   font-weight: 600;
   white-space: normal;
+  color: var(--text);
+  -webkit-text-fill-color: var(--text);
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .pick-btn:hover {
   background: #e9f2ff;
+  color: var(--text);
+  -webkit-text-fill-color: var(--text);
 }
 
 .pick-btn.selected-a {
   background: #cfe6ff;
+  color: var(--text);
+  -webkit-text-fill-color: var(--text);
 }
 
 .pick-btn.selected-b {
   background: #ffe8cf;
+  color: var(--text);
+  -webkit-text-fill-color: var(--text);
+}
+
+.pick-btn:disabled {
+  color: var(--text);
+  -webkit-text-fill-color: var(--text);
+  opacity: 0.65;
 }
 
 .admin-odds-cell {
