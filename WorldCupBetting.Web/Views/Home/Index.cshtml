@@ -1,14 +1,34 @@
-﻿@model WorldCupBetting.Web.ViewModels.DashboardViewModel
+﻿@model WorldCupBetting.Web.ViewModels.LeaderboardViewModel
 @{
-    ViewData["Title"] = "Dashboard";
+    ViewData["Title"] = "Leader Board";
 }
 
-<h1 class="h4 mb-3">Dashboard</h1>
-<div class="row g-3">
-    <div class="col-6 col-md-4"><div class="stat-card"><div>Tổng số trận</div><strong>@Model.TotalMatches</strong></div></div>
-    <div class="col-6 col-md-4"><div class="stat-card"><div>Trận sắp diễn ra</div><strong>@Model.UpcomingMatches</strong></div></div>
-    <div class="col-6 col-md-4"><div class="stat-card"><div>Trận đã kết thúc</div><strong>@Model.FinishedMatches</strong></div></div>
-    <div class="col-12 col-md-4"><div class="stat-card"><div>Người dẫn đầu</div><strong>@Model.CurrentLeader</strong></div></div>
-    <div class="col-12 col-md-4"><div class="stat-card"><div>Lời nhiều nhất</div><strong>@Model.HighestProfitUser</strong></div></div>
-    <div class="col-12 col-md-4"><div class="stat-card"><div>Lỗ nhiều nhất</div><strong>@Model.LargestLossUser</strong></div></div>
+<h1 class="h4 mb-3">Leader Board</h1>
+
+<div class="table-responsive">
+    <table class="table table-bordered table-sm align-middle">
+        <thead>
+            <tr>
+                <th>Thứ hạng</th>
+                <th>Tên hiển thị</th>
+                <th>Số trận đoán đúng</th>
+                <th>Số trận đoán sai</th>
+                <th>Số tiền cúng</th>
+                <th>Danh hiệu</th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var row in Model.Rows)
+        {
+            <tr>
+                <td>@row.Rank</td>
+                <td>@row.DisplayName</td>
+                <td>@row.CorrectPredictions</td>
+                <td>@row.WrongPredictions</td>
+                <td>@row.TotalAmount</td>
+                <td>@(string.IsNullOrWhiteSpace(row.Title) ? "-" : row.Title)</td>
+            </tr>
+        }
+        </tbody>
+    </table>
 </div>

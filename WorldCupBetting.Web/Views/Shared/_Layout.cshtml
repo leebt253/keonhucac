@@ -21,7 +21,7 @@
                     @if (User.Identity?.IsAuthenticated == true)
                     {
                         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                            <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="Index">Dashboard</a></li>
+                            <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="Index">Leader Board</a></li>
                             <li class="nav-item"><a class="nav-link" asp-controller="Matches" asp-action="Index">Trận đấu</a></li>
                             <li class="nav-item"><a class="nav-link" href="https://thethao247.vn/world-cup/bang-xep-hang-bong-da">Bảng xếp hạng</a></li>
                             @if (User.HasClaim("IsAdmin", "true"))
@@ -62,6 +62,7 @@
     @if (User.Identity?.IsAuthenticated == true)
     {
         <nav class="mobile-bottom-nav d-lg-none">
+            <a asp-controller="Home" asp-action="Index">Leader</a>
             <a asp-controller="Matches" asp-action="Index">Trận</a>
             <a href="https://thethao247.vn/world-cup/bang-xep-hang-bong-da">BXH</a>
             @if (User.HasClaim("IsAdmin", "true"))

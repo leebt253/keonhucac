@@ -10,29 +10,57 @@ using WorldCupBetting.Web.ViewModels;
 namespace WorldCupBetting.Web.Controllers;
 
 [Authorize]
-public class HomeController(AppDbContext db, BettingEngine bettingEngine, IClockService clock) : Controller
+public class HomeController(AppDbContext db) : Controller
 {
     public async Task<IActionResult> Index()
     {
-        var matches = await db.Matches.ToListAsync();
-        var totals = await bettingEngine.GetUserTotalsAsync();
-        var users = await db.Users.ToDictionaryAsync(
-            x => x.Id,
-            x => string.IsNullOrWhiteSpace(x.DisplayName) ? x.UserName : x.DisplayName);
+        var users = await db.Users
+            .Where(x => x.UserName != "admin")
+            .OrderBy(x => x.DisplayName)
+            .ThenBy(x => x.UserName)
+            .ToListAsync();
 
-        var ordered = totals.OrderByDescending(x => x.Value).ToList();
+        var results = await db.BetResults.ToListAsync();
 
-        var vm = new DashboardViewModel
+        var rows = users
+            .Select(user =>
+            {
+                var userResults = results.Where(x => x.UserId == user.Id).ToList();
+                var rankTitle = string.Empty;
+
+                return new LeaderboardRowViewModel
+                {
+                    DisplayName = string.IsNullOrWhiteSpace(user.DisplayName) ? user.UserName : user.DisplayName,
+                    CorrectPredictions = userResults.Count(x => x.Amount == -1),
+                    WrongPredictions = userResults.Count(x => x.Amount == 2),
+                    TotalAmount = userResults.Sum(x => x.Amount),
+                    Title = rankTitle
+                };
+            })
+            .OrderBy(x => x.TotalAmount)
+            .ThenByDescending(x => x.CorrectPredictions)
+            .ThenBy(x => x.WrongPredictions)
+            .ThenBy(x => x.DisplayName)
+            .ToList();
+
+        for (var i = 0; i < rows.Count; i++)
         {
-            TotalMatches = matches.Count,
-            FinishedMatches = matches.Count(x => !string.IsNullOrWhiteSpace(x.Result)),
-            UpcomingMatches = matches.Count(x => x.MatchTime > clock.VietnamNow()),
-            CurrentLeader = ordered.Count > 0 ? $"{users[ordered.First().Key]} ({ordered.First().Value})" : "-",
-            HighestProfitUser = ordered.Count > 0 ? $"{users[ordered.First().Key]} ({ordered.First().Value})" : "-",
-            LargestLossUser = ordered.Count > 0 ? $"{users[ordered.Last().Key]} ({ordered.Last().Value})" : "-"
-        };
+            rows[i].Rank = i + 1;
+            rows[i].Title = rows[i].Rank switch
+            {
+                1 => "Con nuôi của nhà cái",
+                2 => "Gia Cát Dự",
+                3 => "Kèo này dễ",
+                >= 4 and <= 6 => "Tham gia cho vui",
+                7 => "Kèo như cặc",
+                _ => ""
+            };
+        }
 
-        return View(vm);
+        return View(new LeaderboardViewModel
+        {
+            Rows = rows
+        });
     }
 
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
