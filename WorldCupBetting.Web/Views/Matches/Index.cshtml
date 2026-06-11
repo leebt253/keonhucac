@@ -7,6 +7,7 @@
 }
 
 <h1 class="h4 mb-3">Bảng trận đấu</h1>
+<p class="text-muted small d-lg-none mb-2">Vuốt ngang bảng để xem đầy đủ cột và tính năng như desktop.</p>
 
 <form method="get" class="row g-2 mb-3">
     <div class="col-12 col-md-4">
@@ -29,7 +30,7 @@
     </div>
 </form>
 
-<div class="d-none d-lg-block table-responsive">
+<div class="table-responsive match-table-wrap">
     <table class="table table-bordered table-sm align-middle bet-table">
         <thead>
         <tr>
@@ -228,28 +229,3 @@
         }
     </script>
 }
-
-<div class="d-lg-none mobile-match-list">
-    @foreach (var row in Model.Rows)
-    {
-        <div class="card mb-3 shadow-sm">
-            <div class="card-body">
-                <h2 class="h6 mb-1">@row.Match.TeamA vs @row.Match.TeamB</h2>
-                <div class="small text-muted">@row.Match.MatchTime.ToString("dd/MM/yyyy")</div>
-                <div class="small text-muted">@row.Match.MatchTime.ToString("HH:mm")</div>
-                <div class="small text-muted">Vòng: @row.Match.Round</div>
-                <div class="mt-2">Đội cửa trên: <strong>@row.Match.FavoriteTeam (@row.Match.HandicapValue)</strong></div>
-                <div>Kết quả: <strong>@(string.IsNullOrWhiteSpace(row.Match.Result) ? "-" : row.Match.Result)</strong></div>
-                <div class="mb-2">Trạng thái: <strong>@(row.IsLocked ? "Đã khóa" : "Mở")</strong></div>
-
-                <form asp-action="Predict" method="post" class="d-flex gap-2 flex-wrap">
-                    @Html.AntiForgeryToken()
-                    <input type="hidden" name="matchId" value="@row.Match.Id" />
-                    <button class="btn btn-outline-primary flex-fill @(row.MySelection == row.Match.TeamA ? "selected-a" : "")" name="selectedTeam" value="@row.Match.TeamA" title="@(string.IsNullOrWhiteSpace(row.TeamAChoosers) ? "Chưa có người chọn" : row.TeamAChoosers)" @(row.IsLocked || string.IsNullOrWhiteSpace(row.Match.TeamA) ? "disabled" : "")>@row.Match.TeamA</button>
-                    <button class="btn btn-outline-primary flex-fill @(row.MySelection == row.Match.TeamB ? "selected-b" : "")" name="selectedTeam" value="@row.Match.TeamB" title="@(string.IsNullOrWhiteSpace(row.TeamBChoosers) ? "Chưa có người chọn" : row.TeamBChoosers)" @(row.IsLocked || string.IsNullOrWhiteSpace(row.Match.TeamB) ? "disabled" : "")>@row.Match.TeamB</button>
-                </form>
-                <div class="mt-2 small">Lựa chọn của tôi: <strong>@(row.MySelection ?? "Chưa chọn")</strong></div>
-            </div>
-        </div>
-    }
-</div>

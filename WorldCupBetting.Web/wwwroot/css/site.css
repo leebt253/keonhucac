@@ -69,6 +69,10 @@ body {
   font-size: 0.9rem;
 }
 
+.match-table-wrap .bet-table {
+  min-width: 1180px;
+}
+
 .bet-table {
   table-layout: auto;
 }
@@ -167,6 +171,15 @@ body {
   .container {
     padding-left: 12px;
     padding-right: 12px;
+  }
+
+  .match-table-wrap .table {
+    font-size: 0.82rem;
+  }
+
+  .match-table-wrap .pick-btn {
+    padding: 6px;
+    font-size: 0.82rem;
   }
 }
 
