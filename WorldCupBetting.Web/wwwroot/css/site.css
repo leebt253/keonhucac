@@ -4,6 +4,7 @@
   --text: #102030;
   --muted: #5e6b78;
   --accent: #0b63f6;
+  color-scheme: light;
 }
 
 html {
@@ -71,6 +72,19 @@ body {
 
 .match-table-wrap .bet-table {
   min-width: 1180px;
+  color-scheme: light;
+}
+
+.match-table-wrap,
+.match-table-wrap .table-responsive,
+.match-table-wrap .table,
+.match-table-wrap td,
+.match-table-wrap th,
+.match-table-wrap form,
+.pick-cell,
+.pick-cell form {
+  color-scheme: light;
+  color: var(--text) !important;
 }
 
 .bet-table {
@@ -98,7 +112,7 @@ body {
 .pick-btn {
   width: 100%;
   border: 0;
-  background: transparent;
+  background: var(--surface);
   padding: 8px;
   text-align: left;
   font-weight: 600;
@@ -107,6 +121,18 @@ body {
   -webkit-text-fill-color: var(--text);
   -webkit-appearance: none;
   appearance: none;
+  color-scheme: light;
+  forced-color-adjust: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.pick-btn-label {
+  display: block;
+  color: var(--text) !important;
+  -webkit-text-fill-color: var(--text) !important;
+  opacity: 1 !important;
+  forced-color-adjust: none;
 }
 
 .pick-btn:hover {
@@ -131,6 +157,12 @@ body {
   color: var(--text);
   -webkit-text-fill-color: var(--text);
   opacity: 0.65;
+}
+
+.pick-btn:disabled .pick-btn-label {
+  color: var(--text) !important;
+  -webkit-text-fill-color: var(--text) !important;
+  opacity: 1 !important;
 }
 
 .mobile-team-btn {
