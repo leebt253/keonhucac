@@ -97,6 +97,176 @@ public class SeedService(AppDbContext db, IClockService clock)
             );
         }
 
+        await DeduplicateGroupMatchesAsync();
+
         await db.SaveChangesAsync();
+    }
+
+    private async Task DeduplicateGroupMatchesAsync()
+    {
+        var groupMatches = await db.Matches
+            .Where(x => x.Round == TournamentRound.Group)
+            .OrderBy(x => x.Id)
+            .ToListAsync();
+
+        if (groupMatches.Count <= 1)
+        {
+            return;
+        }
+
+        var keepByKey = new Dictionary<string, Match>(StringComparer.OrdinalIgnoreCase);
+        var duplicatePairs = new List<(Match Keep, Match Duplicate)>();
+
+        foreach (var match in groupMatches)
+        {
+            var key = BuildPairKey(match.TeamA, match.TeamB);
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                continue;
+            }
+
+            if (!keepByKey.TryGetValue(key, out var keep))
+            {
+                keepByKey[key] = match;
+                continue;
+            }
+
+            if (match.MatchTime < keep.MatchTime)
+            {
+                duplicatePairs.Add((match, keep));
+                keepByKey[key] = match;
+            }
+            else
+            {
+                duplicatePairs.Add((keep, match));
+            }
+        }
+
+        if (duplicatePairs.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var pair in duplicatePairs)
+        {
+            var keep = pair.Keep;
+            var duplicate = pair.Duplicate;
+
+            if (string.IsNullOrWhiteSpace(keep.Result) && !string.IsNullOrWhiteSpace(duplicate.Result))
+            {
+                keep.Result = duplicate.Result;
+            }
+
+            if (string.IsNullOrWhiteSpace(keep.FavoriteTeam) && !string.IsNullOrWhiteSpace(duplicate.FavoriteTeam))
+            {
+                keep.FavoriteTeam = duplicate.FavoriteTeam;
+            }
+
+            if (keep.HandicapValue == 0 && duplicate.HandicapValue != 0)
+            {
+                keep.HandicapValue = duplicate.HandicapValue;
+            }
+
+            if (keep.MatchTime > duplicate.MatchTime)
+            {
+                keep.MatchTime = duplicate.MatchTime;
+            }
+
+            if (string.IsNullOrWhiteSpace(keep.GroupCode) && !string.IsNullOrWhiteSpace(duplicate.GroupCode))
+            {
+                keep.GroupCode = duplicate.GroupCode;
+            }
+
+            var duplicatePredictions = await db.Predictions.Where(x => x.MatchId == duplicate.Id).ToListAsync();
+            foreach (var prediction in duplicatePredictions)
+            {
+                var existing = await db.Predictions
+                    .FirstOrDefaultAsync(x => x.MatchId == keep.Id && x.UserId == prediction.UserId);
+
+                if (existing is null)
+                {
+                    prediction.MatchId = keep.Id;
+                }
+                else
+                {
+                    if (string.IsNullOrWhiteSpace(existing.SelectedTeam) && !string.IsNullOrWhiteSpace(prediction.SelectedTeam))
+                    {
+                        existing.SelectedTeam = prediction.SelectedTeam;
+                    }
+
+                    if (prediction.PredictionTime > existing.PredictionTime)
+                    {
+                        existing.PredictionTime = prediction.PredictionTime;
+                    }
+
+                    db.Predictions.Remove(prediction);
+                }
+            }
+
+            var duplicateResults = await db.BetResults.Where(x => x.MatchId == duplicate.Id).ToListAsync();
+            foreach (var result in duplicateResults)
+            {
+                var existing = await db.BetResults
+                    .FirstOrDefaultAsync(x => x.MatchId == keep.Id && x.UserId == result.UserId);
+
+                if (existing is null)
+                {
+                    result.MatchId = keep.Id;
+                }
+                else
+                {
+                    if (string.IsNullOrWhiteSpace(existing.Outcome) && !string.IsNullOrWhiteSpace(result.Outcome))
+                    {
+                        existing.Outcome = result.Outcome;
+                    }
+
+                    if (existing.Amount == 0 && result.Amount != 0)
+                    {
+                        existing.Amount = result.Amount;
+                    }
+
+                    if (result.CalculatedAt > existing.CalculatedAt)
+                    {
+                        existing.CalculatedAt = result.CalculatedAt;
+                    }
+
+                    db.BetResults.Remove(result);
+                }
+            }
+
+            var parentRefs = await db.Matches
+                .Where(x => x.ParentMatchAId == duplicate.Id || x.ParentMatchBId == duplicate.Id)
+                .ToListAsync();
+
+            foreach (var match in parentRefs)
+            {
+                if (match.ParentMatchAId == duplicate.Id)
+                {
+                    match.ParentMatchAId = keep.Id;
+                }
+
+                if (match.ParentMatchBId == duplicate.Id)
+                {
+                    match.ParentMatchBId = keep.Id;
+                }
+            }
+
+            db.Matches.Remove(duplicate);
+        }
+    }
+
+    private static string BuildPairKey(string teamA, string teamB)
+    {
+        var a = teamA?.Trim() ?? string.Empty;
+        var b = teamB?.Trim() ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(a) || string.IsNullOrWhiteSpace(b))
+        {
+            return string.Empty;
+        }
+
+        return string.Compare(a, b, StringComparison.OrdinalIgnoreCase) <= 0
+            ? $"{a}||{b}"
+            : $"{b}||{a}";
     }
 }
